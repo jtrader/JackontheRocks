@@ -10,9 +10,27 @@ using UnityEngine.Video;
 
 namespace JackOnTheRocks
 {
+    /// <summary>Access classification for a staff video creative.</summary>
+    public enum VideoType { StandardPrompt, VIPExclusive }
+
+    /// <summary>Supported short-form MP4 creative durations.</summary>
+    public enum VideoDuration { Sec5 = 5, Sec10 = 10, Sec15 = 15 }
+
     [Serializable]
     public class VideoCreative
     {
+        // Canonical staff-video fields.
+        public string videoId;
+        public string title;
+        public string cdnUrl;
+        public VideoDuration duration;
+        public VideoType category;
+        public string targetDrinkType;
+        public int minDrinksRequiredToUnlock = 1;
+        public int impressionCount;
+        public int conversionCount;
+
+        // Legacy aliases retained for the existing creative and exclusive-video managers.
         public string creativeId;
         public string waiterName;
         public string waiterId;

@@ -10,7 +10,7 @@ using UnityEngine.Networking;
 namespace JackOnTheRocks
 {
     /// <summary>Roles that may be assigned to an authenticated staff account.</summary>
-    public enum StaffRole { Waiter, AreaManager, Admin }
+    public enum StaffRole { Waiter, AreaManager, Admin, Player }
 
     /// <summary>Server-authoritative states in the staff onboarding lifecycle.</summary>
     public enum OnboardingStatus
@@ -215,6 +215,15 @@ namespace JackOnTheRocks
                 staff.serviceRadiusKm = ClampRadius(staff.serviceRadiusKm);
                 staffById[staff.staffId] = staff;
             }
+        }
+
+        /// <summary>
+        /// Returns a detached snapshot suitable for spatial matching or telemetry.
+        /// Mutating the returned list does not mutate the manager's collection.
+        /// </summary>
+        public List<StaffMember> GetStaffSnapshot()
+        {
+            return new List<StaffMember>(staffById.Values);
         }
 
         /// <summary>Unity button hook that starts Snapchat onboarding for the selected role.</summary>

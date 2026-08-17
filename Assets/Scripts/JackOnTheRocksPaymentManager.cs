@@ -77,6 +77,11 @@ namespace JackOnTheRocks
                     public string userPhone;
                     public string targetRegion;
                     public RegionalManager assignedManager;
+                    /// <summary>
+                    /// Staff account selected by real-time spatial matching. The legacy
+                    /// <see cref="assignedManager"/> field remains populated for older UI flows.
+                    /// </summary>
+                    public StaffMember assignedStaff;
                     public string promotionalCreativeId; // optional creative id that drove this purchase
                     public OrderStatus status;
 
