@@ -89,7 +89,7 @@ namespace JackOnTheRocks
                     {
                         var url = serverUrl.TrimEnd('/') + "/api/jwt-verify";
                         var payload = JsonUtility.ToJson(new { token = container.signature });
-                        using (var uwr = UnityWebRequest.Post(url, ""))
+                        using (var uwr = UnityWebRequest.PostWwwForm(url, ""))
                         {
                             byte[] bodyRaw = Encoding.UTF8.GetBytes(payload);
                             uwr.uploadHandler = new UploadHandlerRaw(bodyRaw);

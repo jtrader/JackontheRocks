@@ -15,12 +15,16 @@ namespace JackOnTheRocks
     {
         public string creativeId;
         public string waiterName;
+        public string waiterId;
+        public string videoTitle;
         public int durationSeconds; // 5,10,15
         public string videoUrl; // CDN MP4
         public JackOnTheRocksPaymentManager.DrinkType targetDrink;
         public int totalImpressions;
         public int totalClicks;
         public int completedPurchases;
+        public bool isExclusiveToPurchasers = false;
+        public int requiredDrinkPurchases = 1;
     }
 
     [Serializable]

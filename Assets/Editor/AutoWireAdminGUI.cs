@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 using JackOnTheRocks.Admin;
 
@@ -17,7 +18,7 @@ public class AutoWireAdminGUI : EditorWindow
     public static void AutoWire()
     {
         var activeScene = SceneManager.GetActiveScene();
-        if (!activeScene.IsValid || activeScene.rootCount == 0)
+        if (!activeScene.IsValid() || activeScene.rootCount == 0)
         {
             activeScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             Debug.Log("No scene was open, so a new empty scene was created for the admin dashboard.");

@@ -8,48 +8,20 @@ using UnityEngine.Networking;
 namespace JackOnTheRocks
 {
     /// <summary>
-    /// Singleton manager handling PayID-based payments for drink bundles.
-    /// Responsibilities:
-    /// - Maintain Snapchat user profile and region routing
-    /// - Create PayID payment instructions for regional managers
-    /// - Track local orders and their statuses
-    /// - Confirm payments (manager webhook or simulated) and grant rocks
-    /// - Trigger in-app notifications and external SMS webhooks
+    /// Comprehensive singleton responsible for handling drink orders, routing to regional managers,
+    /// generating Revolut payment instructions (locked to @blackjackrocks), dispatching order context
+    /// to regional managers via Snapchat Business API, and confirming payments.
     /// </summary>
     public class JackOnTheRocksPaymentManager : MonoBehaviour
     {
-        #region Singleton
-        private static JackOnTheRocksPaymentManager _instance;
-        /// <summary>
-        /// Global singleton instance. Instantiates a GameObject if none exists.
-        /// </summary>
-        public static JackOnTheRocksPaymentManager Instance
+        #region Data Structures
+        [Serializable]
+        public class DrinkOption
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    var go = new GameObject("JackOnTheRocksPaymentManager");
-                    _instance = go.AddComponent<JackOnTheRocksPaymentManager>();
-                }
-                return _instance;
-            }
-        using System;
-        using System.Collections;
-        using System.Collections.Generic;
-        using UnityEngine;
-        using UnityEngine.Networking;
-
-        namespace JackOnTheRocks
-        {
-            /// <summary>
-            /// Comprehensive singleton responsible for handling drink orders, routing to regional managers,
-            /// generating Revolut payment instructions (locked to @blackjackrocks), dispatching order context
-            /// to regional managers via Snapchat Business API, and confirming payments.
-            /// </summary>
-            public class JackOnTheRocksPaymentManager : MonoBehaviour
-            {
-                #region Data Structures
+            public DrinkType drinkType;
+            public string displayName;
+            public string description;
+        }
                 /// <summary>
                 /// Supported drink varieties.
                 /// </summary>
@@ -107,6 +79,11 @@ namespace JackOnTheRocks
                     public RegionalManager assignedManager;
                     public string promotionalCreativeId; // optional creative id that drove this purchase
                     public OrderStatus status;
+
+                    public string orderID => orderId;
+                    public string targetPayIDEmail => revolutPayIDHandle;
+                    public string requiredDescriptionPhone => userPhone;
+                    public string requiredReferenceDrinkName => drink.ToString();
                 }
                 #endregion
 
@@ -179,6 +156,8 @@ namespace JackOnTheRocks
                 public Action<string, OrderStatus> onOrderStatusUpdated;
                 public Action<int> onRocksGranted;
                 public Action<string> onInAppNotificationTriggered;
+                public Action<string> onPaymentPending;
+                public Action<string> onPaymentConfirmed;
                 #endregion
 
                 #region State
@@ -187,6 +166,7 @@ namespace JackOnTheRocks
                 private int totalRocks = 0;
                 private int selectedDrinkIndex = 0;
                 private int selectedTierIndex = 0;
+                private List<DrinkOption> drinkOptions = new List<DrinkOption>();
                 #endregion
 
                 #region Public Methods
@@ -209,7 +189,7 @@ namespace JackOnTheRocks
                 /// <returns>Assigned RegionalManager</returns>
                 public RegionalManager ResolveRegionalManager(float latitude, float longitude)
                 {
-                    RegionalManager? best = null;
+                    RegionalManager best = null;
                     double bestDist = double.MaxValue;
                     foreach (var m in regionalManagers)
                     {
@@ -222,7 +202,7 @@ namespace JackOnTheRocks
                         }
                     }
 
-                    if (best.HasValue) return best.Value;
+                    if (best != null) return best;
 
                     // fallback: nearest active manager even if outside radius
                     foreach (var m in regionalManagers)
@@ -236,7 +216,7 @@ namespace JackOnTheRocks
                         }
                     }
 
-                    if (best.HasValue) return best.Value;
+                    if (best != null) return best;
 
                     // final fallback: return a default empty manager (not null to callers)
                     return new RegionalManager { managerId = "global", regionName = "Global", snapchatBusinessAccountId = "", snapchatApiAccessToken = "", centerLat = 0, centerLong = 0, radiusKm = 360.0f, managerContactPhone = "" };
@@ -284,6 +264,14 @@ namespace JackOnTheRocks
                 }
 
                 /// <summary>
+                /// Start polling for order payment status updates.
+                /// </summary>
+                public void StartPollingOrder(string orderId, int timeoutSeconds = 60)
+                {
+                    onPaymentPending?.Invoke(orderId);
+                }
+
+                /// <summary>
                 /// Public confirmation path: called when server/webhook/manager confirms payment.
                 /// Grants rocks, updates status, sends in-app banner and messages the customer via Snapchat.
                 /// </summary>
@@ -301,6 +289,7 @@ namespace JackOnTheRocks
                     // grant rocks
                     totalRocks += order.rocksToGrant;
                     onRocksGranted?.Invoke(totalRocks);
+                    onPaymentConfirmed?.Invoke(orderId);
 
                     // in-app notification (banner)
                     onInAppNotificationTriggered?.Invoke($"Payment received for {order.drink.ToString()}! Your regional manager is preparing your order. Please wait ~5 minutes.");
@@ -534,32 +523,8 @@ namespace JackOnTheRocks
                 }
 
                 #endregion
-            }
-        }
-                byte[] raw = System.Text.Encoding.UTF8.GetBytes(json);
-                uwr.uploadHandler = new UploadHandlerRaw(raw);
-                uwr.downloadHandler = new DownloadHandlerBuffer();
-                uwr.SetRequestHeader("Content-Type", "application/json");
-                if (!string.IsNullOrEmpty(smsWebhookAuthHeader)) uwr.SetRequestHeader("Authorization", smsWebhookAuthHeader);
-                yield return uwr.SendWebRequest();
-                if (uwr.result != UnityWebRequest.Result.Success)
-                {
-                    Debug.LogWarning("SMS webhook failed: " + uwr.error);
-                }
-            }
-        }
-        #endregion
 
         #region UI Hooks
-        /// <summary>
-        /// Called by UI when a drink is selected by index (0..4)
-        /// </summary>
-        public void OnDrinkSelected(int drinkIndex)
-        {
-            if (drinkIndex < 0 || drinkIndex >= drinkOptions.Count) return;
-            selectedDrinkIndex = drinkIndex;
-        }
-
         /// <summary>
         /// Called by UI when a bundle tier is selected (0..3)
         /// </summary>
@@ -602,21 +567,6 @@ namespace JackOnTheRocks
             }
             return drink.ToString();
         }
-
-        /// <summary>
-        /// Haversine distance in kilometers between two geographic points.
-        /// </summary>
-        private static double HaversineDistanceKm(double lat1, double lon1, double lat2, double lon2)
-        {
-            const double R = 6371.0; // Earth radius km
-            double dLat = DegreesToRadians(lat2 - lat1);
-            double dLon = DegreesToRadians(lon2 - lon1);
-            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) + Math.Cos(DegreesToRadians(lat1)) * Math.Cos(DegreesToRadians(lat2)) * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            return R * c;
-        }
-
-        private static double DegreesToRadians(double deg) => deg * Math.PI / 180.0;
 
         /// <summary>
         /// Localized price string.

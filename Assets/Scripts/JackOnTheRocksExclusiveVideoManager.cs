@@ -9,18 +9,6 @@ using UnityEngine.Video;
 namespace JackOnTheRocks
 {
     [Serializable]
-    public class VideoCreative
-    {
-        public string creativeId;
-        public string waiterId;
-        public string videoTitle;
-        public string videoUrl;
-        public int durationSeconds;
-        public bool isExclusiveToPurchasers = false;
-        public int requiredDrinkPurchases = 1;
-    }
-
-    [Serializable]
     public class PlayerPurchaseRecord
     {
         public string userSnapchatId;

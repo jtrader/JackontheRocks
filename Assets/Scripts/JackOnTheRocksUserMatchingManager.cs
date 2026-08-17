@@ -21,7 +21,7 @@ namespace JackOnTheRocks
     }
 
     [Serializable]
-    public class ClothingLevel
+    public class WaiterOutfit
     {
         public int level;
         public string name;
@@ -34,7 +34,7 @@ namespace JackOnTheRocks
         public string waiterId;
         public string waiterName;
         public WaiterGender gender;
-        public List<ClothingLevel> availableOutfits = new List<ClothingLevel>();
+        public List<WaiterOutfit> availableOutfits = new List<WaiterOutfit>();
         public Sprite portraitSprite;
     }
 

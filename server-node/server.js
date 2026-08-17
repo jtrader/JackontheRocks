@@ -13,6 +13,15 @@ app.use(bodyParser.json({ limit: '1mb' }));
 // Serve uploaded files and admin UI
 // admin auth middleware: supports Basic (ADMIN_BASIC_USER/ADMIN_BASIC_PASS) or Bearer token (ADMIN_TOKEN)
 function adminAuth(req, res, next) {
+  console.log('--- Admin Auth Attempt ---');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Request URL:', req.originalUrl);
+  console.log('Authorization Header:', req.headers['authorization']);
+  console.log('X-Admin-Token Header:', req.headers['x-admin-token']);
+  console.log('Env ADMIN_BASIC_USER:', process.env.ADMIN_BASIC_USER);
+  console.log('Env ADMIN_BASIC_PASS:', process.env.ADMIN_BASIC_PASS ? 'SET' : 'NOT SET');
+  console.log('Env ADMIN_TOKEN:', process.env.ADMIN_TOKEN ? 'SET' : 'NOT SET');
+
   const basicUser = process.env.ADMIN_BASIC_USER;
   const basicPass = process.env.ADMIN_BASIC_PASS;
   const adminToken = process.env.ADMIN_TOKEN;
@@ -21,28 +30,42 @@ function adminAuth(req, res, next) {
   if (auth && auth.startsWith('Basic ') && basicUser && basicPass) {
     const b = Buffer.from(auth.slice(6), 'base64').toString('utf8');
     const parts = b.split(':');
-    if (parts[0] === basicUser && parts[1] === basicPass) return next();
+    if (parts[0] === basicUser && parts[1] === basicPass) {
+      console.log('Basic Auth Successful');
+      return next();
+    }
   }
 
   if (auth && auth.startsWith('Bearer ')) {
     const token = auth.slice(7);
     // direct token
-    if (adminToken && token === adminToken) return next();
+    if (adminToken && token === adminToken) {
+      console.log('Bearer (Static Token) Auth Successful');
+      return next();
+    }
     // try verify JWT
     if (publicKeyPem) {
       try {
         const decoded = jwt.verify(token, publicKeyPem, { algorithms: ['RS256'] });
-        if (decoded && decoded.role === 'admin') return next();
+        if (decoded && decoded.role === 'admin') {
+          console.log('Bearer (JWT) Auth Successful');
+          return next();
+        }
       } catch (e) {
         // fallthrough
+        console.log('JWT verification failed:', e.message);
       }
     }
   }
 
   // x-admin-token support
   const xadmin = req.headers['x-admin-token'];
-  if (xadmin && adminToken && xadmin === adminToken) return next();
+  if (xadmin && adminToken && xadmin === adminToken) {
+    console.log('X-Admin-Token Auth Successful');
+    return next();
+  }
 
+  console.log('--- Auth Failed ---');
   res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
   return res.status(401).send('Unauthorized');
 }
@@ -275,14 +298,35 @@ app.post('/admin/api/upload', upload.single('file'), (req, res) => {
 
 // Admin login to issue short-lived admin JWT (RS256)
 app.post('/admin/api/login', (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, key } = req.body || {};
   const basicUser = process.env.ADMIN_BASIC_USER;
   const basicPass = process.env.ADMIN_BASIC_PASS;
-  if (!basicUser || !basicPass) return res.status(500).json({ error: 'admin credentials not configured' });
-  if (!username || !password) return res.status(400).json({ error: 'missing fields' });
-  if (username !== basicUser || password !== basicPass) return res.status(401).json({ error: 'invalid credentials' });
+  const adminToken = process.env.ADMIN_TOKEN || 'admin_secret_key'; // Fallback for demo
+
+  let authenticated = false;
+  let authUser = 'unknown';
+
+  // Support username/password
+  if (username && password && basicUser && basicPass) {
+    if (username === basicUser && password === basicPass) {
+      authenticated = true;
+      authUser = username;
+    }
+  }
+  // Support key-based auth from Unity client
+  else if (key) {
+    if (key === adminToken) {
+      authenticated = true;
+      authUser = 'admin_key_user';
+    }
+  }
+  
+  if (!authenticated) {
+    return res.status(401).json({ error: 'invalid credentials' });
+  }
+
   try {
-    const payload = { sub: username, role: 'admin' };
+    const payload = { sub: authUser, role: 'admin' };
     const token = jwt.sign(payload, privateKeyPem, { algorithm: 'RS256', expiresIn: '1h', keyid: jwkKid });
     return res.json({ ok: true, token });
   } catch (e) {
@@ -299,6 +343,135 @@ app.delete('/admin/api/file', (req, res) => {
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'file not found' });
     fs.unlinkSync(filePath);
     return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Get overview stats (admin only)
+app.get('/admin/api/overview', adminAuth, (req, res) => {
+  try {
+    // In a real app, you'd fetch this from a database or analytics service.
+    // For this demo, we'll return hardcoded sample data.
+    const overviewData = {
+      revenueUsd: 12345.67,
+      activePlayers: 842,
+      rocksInCirculation: 98765,
+      pendingOrders: 15
+    };
+    return res.json(overviewData);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Get all orders for the admin panel (admin only)
+app.get('/admin/api/waiters/orders', adminAuth, (req, res) => {
+  try {
+    // In a real app, you'd fetch this from a database.
+    // For this demo, we'll return hardcoded sample data.
+    const sampleOrders = [
+      { orderId: 'ORD-001', snapchatUserId: 'snap_user_1', phoneNumber: '555-0101', drinkVariety: 'Bourbon on the Rocks', priceUsd: 12.50, status: 0, targetRevolut: 'revolut_1' },
+      { orderId: 'ORD-002', snapchatUserId: 'snap_user_2', phoneNumber: '555-0102', drinkVariety: 'Vodka on the Rocks', priceUsd: 11.00, status: 1, targetRevolut: 'revolut_2' },
+      { orderId: 'ORD-003', snapchatUserId: 'snap_user_3', phoneNumber: '555-0103', drinkVariety: 'Whiskey on the Rocks', priceUsd: 14.00, status: 2, targetRevolut: 'revolut_3' }
+    ];
+    return res.json(sampleOrders);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Get all regional managers for the admin panel (admin only)
+app.get('/admin/api/regions', adminAuth, (req, res) => {
+  try {
+    // In a real app, you'd fetch this from a database.
+    // For this demo, we'll return hardcoded sample data.
+    const sampleManagers = [
+      { regionName: 'Sydney', latitude: -33.8688, longitude: 151.2093, serviceRadiusKm: 25.0, managerPhone: '555-0201', snapchatBusinessToken: 'snap_token_sydney' },
+      { regionName: 'Melbourne', latitude: -37.8136, longitude: 144.9631, serviceRadiusKm: 30.0, managerPhone: '555-0202', snapchatBusinessToken: 'snap_token_melbourne' }
+    ];
+    return res.json(sampleManagers);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Get creative stats for the admin panel (admin only)
+app.get('/admin/api/creatives/stats', adminAuth, (req, res) => {
+  try {
+    // In a real app, you'd fetch this from a database or analytics service.
+    // For this demo, we'll return hardcoded sample data.
+    const sampleCreatives = [
+      { id: 'creative-001', title: 'Bourbon Promo', cdnUrl: 'http://example.com/vid1.mp4', active: true, impressions: 10500, clicks: 350, conversions: 15 },
+      { id: 'creative-002', title: 'Vodka Special', cdnUrl: 'http://example.com/vid2.mp4', active: true, impressions: 22000, clicks: 400, conversions: 25 },
+      { id: 'creative-003', title: 'Whiskey Night', cdnUrl: 'http://example.com/vid3.mp4', active: false, impressions: 5000, clicks: 50, conversions: 2 }
+    ];
+    return res.json(sampleCreatives);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Get survey telemetry for the admin panel (admin only)
+app.get('/admin/api/surveys/30days', adminAuth, (req, res) => {
+  try {
+    // In a real app, you'd fetch this from a database.
+    // For this demo, we'll return hardcoded sample data.
+    const sampleSurveys = [
+      { id: 'survey-001', waiterId: 'waiter_alex', regionName: 'Sydney', waiterRating: 'Excellent', drinkQuantity: 2, habitCategory: 'Social', transcript: 'Great service, very friendly.' },
+      { id: 'survey-002', waiterId: 'waiter_eva', regionName: 'Melbourne', waiterRating: 'Good', drinkQuantity: 1, habitCategory: 'Moderate', transcript: 'The drink was good, but the wait was a bit long.' },
+      { id: 'survey-003', waiterId: 'waiter_alex', regionName: 'Sydney', waiterRating: 'Average', drinkQuantity: 5, habitCategory: 'Tipsy', transcript: 'It was okay.' }
+    ];
+    return res.json(sampleSurveys);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Confirm an order manually (admin only)
+app.post('/admin/api/orders/:orderId/confirm', adminAuth, (req, res) => {
+  try {
+    const { orderId } = req.params;
+    console.log(`Admin confirmed order: ${orderId}`);
+    // In a real app, you'd update the order status in the database.
+    return res.json({ ok: true, orderId: orderId, status: 'confirmed' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Save regional manager settings (admin only)
+app.post('/admin/api/regions/:regionName', adminAuth, (req, res) => {
+  try {
+    const { regionName } = req.params;
+    const settings = req.body;
+    console.log(`Admin saved settings for region ${regionName}:`, settings);
+    // In a real app, you'd save this to the database.
+    return res.json({ ok: true, regionName: regionName, settings: settings });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Ban a user (admin only)
+app.post('/admin/api/users/:userId/ban', adminAuth, (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`Admin banned user: ${userId}`);
+    // In a real app, you'd update the user's status in the database.
+    return res.json({ ok: true, userId: userId, status: 'banned' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Unban a user (admin only)
+app.post('/admin/api/users/:userId/unban', adminAuth, (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`Admin unbanned user: ${userId}`);
+    // In a real app, you'd update the user's status in the database.
+    return res.json({ ok: true, userId: userId, status: 'active' });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

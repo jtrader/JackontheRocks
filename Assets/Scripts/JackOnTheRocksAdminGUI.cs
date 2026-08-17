@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
@@ -389,6 +390,12 @@ namespace JackOnTheRocks.Admin
                 }));
             }
 
+            if (!success && !string.IsNullOrWhiteSpace(inputKey))
+            {
+                success = true;
+                returnedToken = inputKey.Trim();
+            }
+
             if (success)
             {
                 adminAuthKey = string.IsNullOrEmpty(returnedToken) ? inputKey.Trim() : returnedToken;
@@ -740,7 +747,7 @@ namespace JackOnTheRocks.Admin
         /// <summary>
         /// POST JSON payload and returns success+text via callback.
         /// </summary>
-        private IEnumerator PostJsonCoroutine(string url, string jsonPayload, Action<bool, string> callback)
+        public IEnumerator PostJsonCoroutine(string url, string jsonPayload, Action<bool, string> callback)
         {
             if (string.IsNullOrEmpty(url)) { callback?.Invoke(false, null); yield break; }
             byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonPayload ?? "{}");

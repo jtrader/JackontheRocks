@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
+using JackOnTheRocks;
 
 /// <summary>
 /// Editor helper to create an example scene with UI buttons wired to the demo component.
