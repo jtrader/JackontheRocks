@@ -1,0 +1,47 @@
+Create a comprehensive, production-ready C# singleton script named `JackOnTheRocks2DAIManager.cs` for an 18+ mobile web Blackjack game. 
+
+The script must handle core Blackjack game logic, state management, a dual-currency system (Rocks/Diamonds), drink microtransactions, and an asynchronous HTTP 2D AI Image Generation pipeline for dynamically streaming adult waiter/waitress avatar portraits.
+
+### 1. Data Structures & Classes
+- Define an `enum HandState { WaitingToStart, Betting, PlayerTurn, DealerTurn, GameOver }`.
+- Define an `enum CardSuit { Hearts, Diamonds, Clubs, Spades }`.
+- Define an `enum CardRank { Two = 2, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King, Ace }`.
+- Define an `enum WaiterGender { Female, Male }`.
+- Define an `enum ClothingLevel { FullyClothed, Lingerie }`.
+- Define a `Card` class containing `CardSuit`, `CardRank`, `int value`, and a `Sprite` reference.
+- Define a `Hand` class managing a `List<Card>`, soft/hard Ace logic (11 reduced to 1 on bust), and initial 21 checks.
+- Define an `AIAvatarConfig` class/struct containing `string characterPromptTags`, `ClothingLevel currentClothing`, `bool isPoleDancing`, and `string baseSeed`.
+
+### 2. Async AI Image API Streamer (UnityWebRequest)
+- Implement an async/coroutine method `RequestAIAvatarSprite(AIAvatarConfig config, System.Action<Sprite> onSpriteReady)` that:
+  - Constructs a JSON payload with positive and negative prompts based on `ClothingLevel` and action states (e.g., `"sexy waiter, (lingerie:1.2), masterpiece"` vs `"naked, (nude:1.3)"`).
+  - Sends a POST request to an external AI image generation endpoint (e.g., Automatic1111 `/sdapi/v1/txt2img` or a WebGPU API).
+  - Parses the base64 image response, converts it to a `Texture2D`, converts that to a Unity `Sprite`, and invokes the callback for UI rendering.
+  - Features basic fallback handling and loading state triggers while the AI frame renders.
+
+### 3. Economy & Drink Microtransactions
+- Track dynamic player currency: `int totalRocks`.
+- Implement Drink Store bundles:
+  - 1 Drink: $5.00 -> 100 Rocks
+  - 3 Drinks: $10.00 -> 300 Rocks
+  - 5 Drinks: $15.00 -> 500 Rocks
+  - 10 Drinks: $25.00 -> 1,000 Rocks ("Shout the Table")
+- Provide `PurchaseDrinkBundle(int bundleID)` to update Rocks balance and notify UI.
+
+### 4. Core Blackjack Logic
+- Implement shoe management (1–6 decks) with Fisher-Yates shuffling and auto-reshuffle when deck falls below 20%.
+- Game flow: Bet Rocks -> Deal 2 cards to Player, 1 face-up and 1 face-down to Dealer.
+- Check immediate Natural Blackjack (payout 3:2 in Rocks).
+- Actions: `Hit()`, `Stand()`, `DoubleDown()`.
+- Dealer AI: Reveal hidden card, hit on soft 17, stand on hard 17 or higher. Payout wins 1:1 in Rocks.
+
+### 5. AI Character Interactivity & Prompt State Machine
+- Manage an active `AIAvatarConfig` for the waiter/waitress currently serving the table.
+- Implement `InteractWithAIAvatar(int interactionType)`:
+  - **Type 0 (Tip):** Deduct Rocks, append positive expression tags to AI prompt (e.g., `"happy, smiling"`), and request a new AI image frame.
+  - **Type 1 (Dance):** Deduct Rocks, set `isPoleDancing = true`, append motion/dance tags, and stream pose frames.
+  - **Type 2 (Strip):** Deduct Rocks, degrade `ClothingLevel` enum to the next tier, rebuild prompt tags, and stream the updated explicit AI image sprite.
+
+### 6. Events & Requirements
+- Provide `C# System.Action` events for UI: `onGameStateChanged`, `onCardDealt`, `onRocksBalanceUpdated`, `onGameResult`, `onAIAvatarLoadingStarted`, and `onAIAvatarSpriteUpdated(Sprite avatarSprite)`.
+- Use `[SerializeField]` for API URLs, default bet amounts, and initial character prompts. Include clean XML comments.

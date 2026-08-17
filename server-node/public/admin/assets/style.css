@@ -1,0 +1,31 @@
+/* JackOnTheRocks admin theme - replace colors to match branding images */
+:root{
+  --primary:#1f2a36; /* dark slate */
+  --accent:#ff5a5f; /* warm coral */
+  --muted:#7a8a95;
+  --bg:#0f1113;
+  --card:#162029;
+  --glass: rgba(255,255,255,0.03);
+}
+body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:linear-gradient(180deg,var(--bg),#071018); color:#e6eef6; margin:0}
+.admin-header{display:flex;align-items:center;padding:14px 20px;background:linear-gradient(90deg,var(--card),var(--glass));box-shadow:0 2px 8px rgba(0,0,0,0.6)}
+.brand{display:flex;align-items:center}
+.brand img{height:44px;width:auto;margin-right:12px;border-radius:6px}
+.brand-text{font-weight:700;color:var(--accent);font-size:18px}
+.admin-main{padding:20px}
+h1{margin-top:6px;margin-bottom:6px}
+.lead{color:var(--muted);margin-bottom:12px}
+.waiter{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.04);padding:12px;border-radius:8px;margin-bottom:10px}
+.file{display:flex;align-items:center;margin:8px 0}
+.file img{border-radius:6px;border:1px solid rgba(255,255,255,0.04);margin-right:8px}
+button{background:var(--accent);color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer}
+button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+input, select{background:#0b1013;border:1px solid rgba(255,255,255,0.03);color:#dceaf8;padding:6px;border-radius:6px}
+#list{margin-top:12px}
+
+.admin-controls{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.admin-grid{display:flex;gap:16px}
+.admin-sidebar{width:240px;max-height:60vh;overflow:auto;padding:8px;background:rgba(0,0,0,0.05);border-radius:8px}
+.admin-list{flex:1;max-height:70vh;overflow:auto}
+.sid-btn{display:block;width:100%;text-align:left;margin-bottom:6px;padding:8px;border-radius:6px;background:rgba(255,255,255,0.02);color:var(--muted);border:1px solid rgba(255,255,255,0.02);cursor:pointer}
+.sid-btn:hover{background:rgba(255,255,255,0.03)}

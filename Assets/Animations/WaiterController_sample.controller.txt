@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+AnimatorController:
+  m_ObjectHideFlags: 0
+  m_FileIDToRecycleName: 0
+  m_AnimatorLayers:
+  - m_Name: Default Layer
+    m_StateMachine:
+      m_Name: RootStateMachine
+      m_Children:
+      - m_Name: Idle
+      - m_Name: ChangeClothing
+      - m_Name: Dance
+    m_Transitions: []
+  m_Parameters:
+  - m_Name: ClothingTier
+    m_Type: 3 # Int
+  - m_Name: isDancing
+    m_Type: 1 # Bool
+  - m_Name: ChangeClothing
+    m_Type: 2 # Trigger
+
+This is a human-readable sample showing the intended structure. Use the Editor menu "JackOnTheRocks/Create Waiter Animator Controller" to create a real Animator Controller asset.

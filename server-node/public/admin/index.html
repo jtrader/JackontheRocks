@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>JackOnTheRocks — Waiter Creatives Admin</title>
+  <link rel="stylesheet" href="/admin/assets/style.css">
+</head>
+<body>
+  <header class="admin-header">
+    <div class="brand">
+      <img id="siteLogo" src="/admin/assets/logo.png" alt="JackOnTheRocks" onerror="this.style.display='none'">
+      <div class="brand-text">JackOnTheRocks Admin</div>
+    </div>
+  </header>
+  <main class="admin-main">
+  <h1>Waiter Creatives Admin</h1>
+  <p class="lead">Upload MP4s and manage per-waiter creative files. Use the branding assets to preview site and game look-and-feel.</p>
+
+  <div class="admin-controls">
+    <label>Waiter ID: <input id="waiterId" value="Waitress_Female_1"></label>
+    <label style="margin-left:16px">Admin Token: <input id="adminToken" placeholder="paste token or leave blank"></label>
+    <button id="setTokenBtn">Set</button>
+    <input type="file" id="fileInput" multiple>
+    <button id="uploadBtn">Upload</button>
+    <button id="refreshBtn">Refresh</button>
+  </div>
+
+  <div class="admin-grid">
+    <aside id="sidebar" class="admin-sidebar"></aside>
+    <section id="list" class="admin-list"></section>
+  </div>
+  </main>
+
+  <script>
+    async function listWaiters() {
+      const resp = await fetch(window.location.origin + '/admin/api/waiters');
+      const obj = await resp.json();
+      const listDiv = document.getElementById('list');
+      const sidebar = document.getElementById('sidebar');
+      listDiv.innerHTML = '';
+      sidebar.innerHTML = '';
+      const waiters = obj.waiters || {};
+      const waiterIds = Object.keys(waiters).sort();
+      // sidebar navigation
+      waiterIds.forEach(wid => {
+        const b = document.createElement('button'); b.textContent = wid; b.className = 'sid-btn';
+        b.onclick = () => { renderWaiter(wid); };
+        sidebar.appendChild(b);
+      });
+
+      function renderWaiter(wid) {
+        listDiv.innerHTML = '';
+        const div = document.createElement('div'); div.className = 'waiter';
+        const h = document.createElement('div'); h.innerHTML = `<strong>${wid}</strong> <button id="createMeta_${wid}">Create Meta</button>`;
+        div.appendChild(h);
+        document.getElementById(`createMeta_${wid}`)?.addEventListener?.('click', async () => {});
+        // Create Meta button
+        h.querySelector(`#createMeta_${wid}`)?.addEventListener('click', async () => {
+          const fileName = prompt('Enter fileName for metadata (without extension)');
+          if (!fileName) return;
+          const meta = { creativeId: fileName, waiterId: wid, videoTitle: fileName, videoUrl: `/uploads/waiters/${encodeURIComponent(wid)}/${encodeURIComponent(fileName)}.mp4`, durationSeconds: 0, isExclusiveToPurchasers:false, requiredDrinkPurchases:1, thumbnailUrl: null };
+          const r = await fetch(window.location.origin + '/admin/api/video-meta', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': window.__ADMIN_AUTH || '' }, body: JSON.stringify({ waiterId: wid, fileName: fileName + '.mp4', updates: meta }) });
+          const jr = await r.json();
+          if (r.ok) { alert('Meta created'); listWaiters(); } else { alert('Create meta failed: ' + (jr.error || r.statusText)); }
+        });
+
+        const files = waiters[wid];
+        for (const f of files) {
+          const fdiv = document.createElement('div'); fdiv.className = 'file';
+          const thumb = document.createElement('img');
+          thumb.style.maxWidth = '160px'; thumb.style.maxHeight = '90px'; thumb.style.marginRight = '8px';
+          if (f.thumbnailUrl) thumb.src = f.thumbnailUrl; else thumb.src = '';
+          fdiv.appendChild(thumb);
+
+          const link = document.createElement('a'); link.href = f.url; link.target = '_blank'; link.textContent = f.fileName;
+          fdiv.appendChild(link);
+
+          const edit = document.createElement('button'); edit.textContent = 'Edit';
+          edit.onclick = async () => {
+            const r = await fetch(window.location.origin + `/admin/api/video-meta?waiterId=${encodeURIComponent(wid)}&fileName=${encodeURIComponent(f.fileName)}`, { headers: { 'Authorization': window.__ADMIN_AUTH || '' } });
+            const meta = r.ok ? await r.json() : { creativeId: f.fileName, waiterId: wid, videoTitle: f.fileName, isExclusiveToPurchasers:false, requiredDrinkPurchases:1, thumbnailUrl: null };
+            const dlg = document.createElement('div'); dlg.style.border='1px solid #999'; dlg.style.padding='8px'; dlg.style.background='#fff';
+            dlg.innerHTML = `<div><strong>Edit ${f.fileName}</strong></div>`;
+            const excl = document.createElement('label'); excl.innerHTML = 'Exclusive: '; const exclChk = document.createElement('input'); exclChk.type='checkbox'; exclChk.checked = !!meta.isExclusiveToPurchasers; excl.appendChild(exclChk); dlg.appendChild(excl);
+            const req = document.createElement('label'); req.style.marginLeft='8px'; req.innerHTML = 'Required Drinks: '; const reqInput = document.createElement('input'); reqInput.type='number'; reqInput.value = meta.requiredDrinkPurchases || 1; reqInput.style.width='60px'; req.appendChild(reqInput); dlg.appendChild(req);
+            const save = document.createElement('button'); save.textContent='Save'; save.onclick = async () => {
+              const updates = { isExclusiveToPurchasers: exclChk.checked, requiredDrinkPurchases: parseInt(reqInput.value) || 1 };
+              const r2 = await fetch(window.location.origin + '/admin/api/video-meta', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': window.__ADMIN_AUTH || '' }, body: JSON.stringify({ waiterId: wid, fileName: f.fileName, updates }) });
+              const j2 = await r2.json();
+              if (r2.ok) { alert('Saved'); listWaiters(); } else { alert('Save failed: ' + (j2.error || r2.statusText)); }
+              document.body.removeChild(dlg);
+            };
+            const cancel = document.createElement('button'); cancel.textContent='Cancel'; cancel.onclick = () => { document.body.removeChild(dlg); };
+            dlg.appendChild(save); dlg.appendChild(cancel);
+            dlg.style.position='fixed'; dlg.style.left='50%'; dlg.style.top='50%'; dlg.style.transform='translate(-50%,-50%)'; dlg.style.zIndex='9999';
+            document.body.appendChild(dlg);
+          };
+          fdiv.appendChild(edit);
+
+          const replace = document.createElement('button'); replace.textContent = 'Replace';
+          replace.onclick = async () => {
+            const fileInput = document.createElement('input'); fileInput.type = 'file';
+            fileInput.onchange = async () => {
+              if (!fileInput.files || fileInput.files.length === 0) return;
+              const file = fileInput.files[0];
+              if (file.name !== f.fileName) {
+                if (!confirm(`Selected file has name ${file.name}. To replace ${f.fileName}, please ensure the uploaded file uses the same filename. Continue?`)) return;
+              }
+              const form = new FormData(); form.append('waiterId', wid); form.append('file', file);
+              const r = await fetch(window.location.origin + '/admin/api/upload', { method: 'POST', body: form, headers: { 'Authorization': window.__ADMIN_AUTH || '' } });
+              const j = await r.json();
+              if (r.ok) { alert('Replaced (uploaded).'); listWaiters(); } else { alert('Replace failed: ' + (j.error || r.statusText)); }
+            };
+            fileInput.click();
+          };
+          fdiv.appendChild(replace);
+
+          const del = document.createElement('button'); del.textContent = 'Delete';
+          del.onclick = async () => {
+            if (!confirm('Delete ' + f.fileName + '?')) return;
+            const r = await fetch(window.location.origin + '/admin/api/file', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Authorization': window.__ADMIN_AUTH || '' }, body: JSON.stringify({ waiterId: wid, fileName: f.fileName }) });
+            const jr = await r.json();
+            if (r.ok) { alert('Deleted'); listWaiters(); } else { alert('Error: ' + (jr.error || r.statusText)); }
+          };
+          fdiv.appendChild(del);
+          div.appendChild(fdiv);
+        }
+        listDiv.appendChild(div);
+      }
+    }
+
+    document.getElementById('refreshBtn').onclick = listWaiters;
+    document.getElementById('setTokenBtn').onclick = () => { window.__ADMIN_AUTH = 'Bearer ' + document.getElementById('adminToken').value; alert('Admin token set (will be sent as Authorization header).'); };
+    document.getElementById('uploadBtn').onclick = async () => {
+      const waiterId = document.getElementById('waiterId').value || 'default';
+      const fileInput = document.getElementById('fileInput');
+      if (!fileInput.files || fileInput.files.length === 0) { alert('Select at least one file'); return; }
+      const files = Array.from(fileInput.files);
+      for (let i = 0; i < files.length; ++i) {
+        const f = files[i];
+        const form = new FormData();
+        form.append('waiterId', waiterId);
+        form.append('file', f);
+        try {
+          const r = await fetch(window.location.origin + '/admin/api/upload', { method: 'POST', body: form, headers: { 'Authorization': window.__ADMIN_AUTH || '' } });
+          const j = await r.json();
+          if (!r.ok) { alert('Upload failed for ' + f.name + ': ' + (j.error || r.statusText)); return; }
+        } catch (e) {
+          alert('Upload error for ' + f.name + ': ' + e.message); return;
+        }
+      }
+      alert('Uploaded ' + files.length + ' files');
+      listWaiters();
+    };
+
+    // initial
+    listWaiters();
+  </script>
+</body>
+</html>
